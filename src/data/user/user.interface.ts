@@ -6,7 +6,6 @@ export interface User {
       color: string;
       ghost: string;
    };
+   roomId: string;
    isHost: boolean;
-   score: number;
-   isDrawing: boolean;
 }
