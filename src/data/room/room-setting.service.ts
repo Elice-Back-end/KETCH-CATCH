@@ -3,11 +3,12 @@ import { plainToClass } from "class-transformer";
 import { validate } from "class-validator";
 import { AppGateway } from "src/app.gateway";
 import { roomSettingDto } from "src/room/dto/room-setting.dto";
+import { Room } from "./room.interface";
 
 @Injectable()
 export class RoomSettingService {
    constructor(private appGateway: AppGateway) {}
-
+   room: Room[] = [];
    // roomSetting DTO 유효성 검증 로직
    async validData(roomData: roomSettingDto) {
       try {
@@ -24,5 +25,9 @@ export class RoomSettingService {
       } catch (e) {
          this.appGateway.handleError(e);
       }
+   }
+
+   registerRoom(roomData: Room) {
+      this.room.push(roomData);
    }
 }

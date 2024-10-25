@@ -39,4 +39,8 @@ export class UserService {
    register(userData: User) {
       this.users.push(userData);
    }
+
+   findUsers(roomId: string) {
+      return this.users.filter((user) => user.roomId === roomId);
+   }
 }
