@@ -1,41 +1,41 @@
-import { SubscribeMessage, WebSocketGateway } from "@nestjs/websockets";
+import { OnGatewayConnection, SubscribeMessage, WebSocketGateway } from "@nestjs/websockets";
 import { Socket } from "socket.io";
 import { roomSettingDto } from "src/room/dto/room-setting.dto";
 import { userDto } from "src/room/dto/user.dto";
-import { nanoid } from "nanoid";
-import { UserService } from "src/data/user/user.service";
 import { RoomService } from "./room.service";
+import { RoomSettingService } from "src/data/room/room-setting.service";
 
 @WebSocketGateway({ namespace: "room" })
-export class RoomGateway {
-   private round: number;
-   private time: number;
-   private person: number;
-   private gameMode: string;
-   private password: string | null;
-   private hint: boolean;
-
+export class RoomGateway implements OnGatewayConnection {
    constructor(
-      private userService: UserService,
       private roomService: RoomService,
-   ) {
-      this.round = 8;
-      this.time = 60;
-      this.person = 4;
-      this.gameMode = "easy mode";
-      this.password = null;
-      this.hint = false;
-   }
+      private roomSettingService: RoomSettingService,
+   ) {}
 
-   room = [];
+   handleConnection() {
+      this.roomService.initialCreateRoom();
+   }
 
    @SubscribeMessage("make-room")
    async createRoom(socket: Socket, data: { user: userDto; roomSetting: roomSettingDto }) {
-      const { roomId, payload } = await this.roomService.createRoom(data);
+      const { roomId, payload } = await this.roomService.createRoom(data.user, data.roomSetting);
 
-      this.room.push({ roomId, ...data.roomSetting });
       // room 입장
       socket.join(roomId);
       socket.to(roomId).emit("made-room", payload);
+   }
+
+   // 랜덤 룸 입장
+   @SubscribeMessage("entrance-random-room")
+   async randomRoom(socket: Socket, data: { user: userDto }) {
+      // Room List 복사
+      let roomList = this.roomSettingService.room.map((room) => {
+         return { roomId: room.roomId, person: room.person, password: room.password, isStart: room.isStart };
+      });
+
+      const payload = await this.roomService.randomRoom(data.user, roomList);
+
+      socket.join(payload.roomId);
+      socket.to(payload.roomId).emit("entranced-random-room", payload);
    }
 }
