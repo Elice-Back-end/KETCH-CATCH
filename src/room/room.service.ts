@@ -1,4 +1,4 @@
-import { forwardRef, Inject, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { userDto } from "./dto/user.dto";
 import { roomSettingDto } from "./dto/room-setting.dto";
 import { UserService } from "src/data/user/user.service";
@@ -13,6 +13,7 @@ export class RoomService {
    private gameMode: string;
    private password: string | null;
    private hint: boolean;
+   private isCheck: boolean;
 
    constructor(
       private userService: UserService,
@@ -24,6 +25,7 @@ export class RoomService {
       this.gameMode = "easy mode";
       this.password = null;
       this.hint = false;
+      this.isCheck = false;
    }
 
    // 초기 방 생성
@@ -50,7 +52,7 @@ export class RoomService {
    }
 
    // room 생성
-   async createRoom(userData: userDto, roomData: roomSettingDto) {
+   async createRoom(userData: userDto, roomData: roomSettingDto): Promise<{ isHost: boolean; roomId: string }> {
       const err = await Promise.all([
          this.userService.validData(userData),
          this.roomSettingService.validData(roomData),
@@ -59,22 +61,21 @@ export class RoomService {
       if (err.every((result) => result !== undefined) === false) return; // dto 유효성 검증 오류가 발생한 경우
 
       const roomId = nanoid(); // 랜덤한 roomId 생성
-      const payload: { host: string; roomId: string; message: string } = {
-         host: userData.socketId,
+      const payload: { isHost: boolean; roomId: string } = {
+         isHost: true,
          roomId,
-         message: "방이 생성되었습니다.",
       };
 
-      this.userService.register({ ...userData, roomId, isHost: true });
+      this.userService.register({ ...userData, roomId, isHost: true, isCheck: this.isCheck });
       this.roomSettingService.registerRoom({ roomId, ...roomData, isStart: false });
-      return { roomId, payload };
+      return payload;
    }
 
    // 랜덤 room 입장
    async randomRoom(
       userData: userDto,
       roomList: { roomId: string; person: number; password: string | null; isStart: boolean }[],
-   ): Promise<{ isHost: boolean; roomId: string; message: string }> {
+   ): Promise<{ isHost: boolean; roomId: string }> {
       const err = await this.userService.validData(userData);
       if (err === undefined) return; // dto 유효성 검증 오류가 발생한 경우
 
@@ -90,10 +91,14 @@ export class RoomService {
          const payload = {
             isHost,
             roomId: randomRoomList[randomIndex],
-            message: `${userData.nickname}님이 입장하였습니다.`,
          };
 
-         this.userService.register({ ...userData, roomId: payload.roomId, isHost });
+         this.userService.register({
+            ...userData,
+            roomId: payload.roomId,
+            isHost,
+            isCheck: this.isCheck,
+         });
          return payload;
       }
 
@@ -103,7 +108,6 @@ export class RoomService {
       let payload = {
          isHost,
          roomId,
-         message: `${userData.nickname}님이 입장하였습니다.`,
       };
 
       // full방일 경우, 게임 시작했을 경우, 비밀번호 존재할 경우
@@ -115,10 +119,15 @@ export class RoomService {
       // 방에 처음 들어온 사람인 경우(= host인 경우)
       if (participants.length === 0) {
          payload.isHost = true;
-         this.userService.register({ ...userData, roomId, isHost: payload.isHost });
+         this.userService.register({
+            ...userData,
+            roomId,
+            isHost: payload.isHost,
+            isCheck: this.isCheck,
+         });
          return payload;
       }
-      this.userService.register({ ...userData, roomId, isHost });
+      this.userService.register({ ...userData, roomId, isHost, isCheck: this.isCheck });
       return payload;
    }
 }
