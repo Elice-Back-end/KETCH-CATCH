@@ -8,4 +8,5 @@ export interface User {
    };
    roomId: string;
    isHost: boolean;
+   isCheck: boolean; // 비밀번호 체크 여부
 }
