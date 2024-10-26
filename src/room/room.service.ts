@@ -12,6 +12,7 @@ import { RoomSettingService } from "src/data/room/room-setting.service";
 import { nanoid } from "nanoid";
 import * as bcrypt from "bcrypt";
 import { Response } from "express";
+import { passwordDto } from "./dto/password.dto";
 
 @Injectable()
 export class RoomService {
@@ -90,6 +91,7 @@ export class RoomService {
          hint,
          isStart: false,
       });
+
       return payload;
    }
 
@@ -148,12 +150,13 @@ export class RoomService {
       try {
          // 초대코드가 조건에 부합하지 않는 경우
          if (new RegExp(process.env.INVITATION_CODE_REX).test(invitationCode) === false) {
-            throw new BadRequestException("잘못된 초대코드입니다. 다시 입력해주세요.");
+            throw new BadRequestException({ err: "잘못된 초대코드입니다. 다시 입력해주세요.", data: null });
          }
 
          // 초대코드에 해당하는 방이 없는 경우
          const roomId = invitationCode.slice(process.env.INVITATION_CODE.length);
          const foundRoom = this.roomSettingService.findOneRoom(roomId);
+
          if (foundRoom === undefined) {
             throw new NotFoundException({
                err: "종료된 방입니다. 홈페이지로 돌아갑니다.",
@@ -180,18 +183,20 @@ export class RoomService {
 
          res.set({ authentication: roomId })
             .status(200)
-            .json({ err: null, data: { password: foundRoom.password } });
+            .json({ err: null, data: { password: foundRoom.password === null ? null : "string" } });
       } catch (e) {
          throw e;
       }
    }
 
    // 비밀번호 확인
-   async checkPassword(res: Response, authenticationCode: string, password: string, userData: userDto) {
+   async checkPassword(res: Response, authenticationCode: string, data: passwordDto) {
       try {
          if (authenticationCode === undefined || authenticationCode.trim() === "" || authenticationCode === null) {
-            throw new UnauthorizedException("초대코드를 확인해주세요.");
+            throw new UnauthorizedException({ err: "초대코드를 확인해주세요.", data: null });
          }
+
+         const { password, userData } = data;
 
          const foundRoom = this.roomSettingService.findOneRoom(authenticationCode);
          // 방이 없는 경우
@@ -205,6 +210,7 @@ export class RoomService {
          // 비밀번호가 null이 아닌 경우
          if (foundRoom.password !== null) {
             const isPassword = await bcrypt.compare(password, foundRoom.password);
+
             // 비밀번호가 일치하지 않는 경우
             if (isPassword === false) {
                throw new BadRequestException("비밀번호가 일치하지 않습니다.");
@@ -229,20 +235,28 @@ export class RoomService {
          }
 
          this.userService.register({ ...userData, roomId: authenticationCode, isHost: false, isCheck: true });
-         res.status(200).json({ err: null, data: "비밀번호 확인 완료되었습니다." });
+         res.status(200).json({ err: null, data: "비밀번호 확인되었습니다." });
       } catch (e) {
          throw e;
       }
    }
 
    // 초대 코드 입장
-   async invitedRoom(
-      roomId: string,
-      password: string,
-      userData: userDto,
-   ): Promise<{ isHost: boolean; roomId: string }> {
+   async invitedRoom(roomId: string, userData: userDto): Promise<{ isHost: boolean; roomId: string }> {
       const err = await this.userService.validData(userData);
       if (err === undefined) return; // dto 유효성 검증 오류가 발생한 경우
+
+      if (roomId === undefined || roomId.trim() === "" || roomId === null) {
+      }
+
+      const foundRoom = this.roomSettingService.findOneRoom(roomId);
+      const foundUser = this.userService.findOneUser(userData.socketId);
+      // 방의 패스워드가 존재할 때
+      if (foundRoom.password !== null) {
+         // 비밀번호 확인을 하지 않았을 경우
+         if (foundUser.isCheck === false) {
+         }
+      }
 
       // 예외처리 로직 거침(roomId 확인하고 password까지 확인함)
       const payload: { isHost: boolean; roomId: string } = {
