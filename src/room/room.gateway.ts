@@ -12,17 +12,20 @@ export class RoomGateway implements OnGatewayConnection {
       private roomSettingService: RoomSettingService,
    ) {}
 
+   // 클라이언트 접속 시
    handleConnection() {
       this.roomService.initialCreateRoom();
    }
 
+   // 방 생성
    @SubscribeMessage("make-room")
    async createRoom(socket: Socket, data: { user: userDto; roomSetting: roomSettingDto }) {
-      const { roomId, payload } = await this.roomService.createRoom(data.user, data.roomSetting);
+      const payload = await this.roomService.createRoom(data.user, data.roomSetting);
+      if (payload === undefined) return; // 오류 발생 시
 
       // room 입장
-      socket.join(roomId);
-      socket.to(roomId).emit("made-room", payload);
+      socket.join(payload.roomId);
+      socket.emit("made-room", payload);
    }
 
    // 랜덤 룸 입장
@@ -34,8 +37,9 @@ export class RoomGateway implements OnGatewayConnection {
       });
 
       const payload = await this.roomService.randomRoom(data.user, roomList);
+      if (payload === undefined) return; // 오류 발생 시
 
       socket.join(payload.roomId);
-      socket.to(payload.roomId).emit("entranced-random-room", payload);
+      socket.emit("entranced-random-room", payload);
    }
 }
