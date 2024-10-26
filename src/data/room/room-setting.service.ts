@@ -27,7 +27,13 @@ export class RoomSettingService {
       }
    }
 
+   // 방 등록
    registerRoom(roomData: Room) {
       this.room.push(roomData);
+   }
+
+   // 방 조회
+   findOneRoom(roomId: string): Room {
+      return this.room.find((room) => room.roomId === roomId);
    }
 }
