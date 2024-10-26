@@ -42,4 +42,14 @@ export class RoomGateway implements OnGatewayConnection {
       socket.join(payload.roomId);
       socket.emit("entranced-random-room", payload);
    }
+
+   // 초대 코드 입장
+   @SubscribeMessage("entrance-invited-room")
+   async invitedRoom(socket: Socket, data: { user: userDto }, password: string, roomId: string) {
+      const payload = await this.roomService.invitedRoom(roomId, password, data.user);
+      if (payload === undefined) return;
+
+      socket.join(payload.roomId);
+      socket.emit("entranced-invited-room", payload);
+   }
 }
