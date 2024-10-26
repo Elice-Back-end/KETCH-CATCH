@@ -1,6 +1,7 @@
 import { Body, Controller, Headers, Post, Res } from "@nestjs/common";
 import {
    ApiBadRequestResponse,
+   ApiBody,
    ApiForbiddenResponse,
    ApiHeader,
    ApiInternalServerErrorResponse,
@@ -10,10 +11,10 @@ import {
    ApiTags,
    ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
-import { passwordDto, invitationCodeDto } from "./dto/invitation.dto";
+import { invitationCodeDto } from "./dto/invitation.dto";
 import { RoomService } from "./room.service";
 import { Response } from "express";
-import { userDto } from "./dto/user.dto";
+import { passwordDto } from "./dto/password.dto";
 
 @ApiTags("Room Entrance")
 @Controller("room")
@@ -23,10 +24,13 @@ export class RoomController {
    // 초대코드 확인
    @Post("invitation")
    @ApiOperation({ summary: "초대코드 확인 API" })
-   @ApiOkResponse({ description: "초대코드 확인", example: { err: null, data: "확인되었습니다." } })
+   @ApiOkResponse({ description: "초대코드 확인", example: { err: null, data: { password: "string" } } })
    @ApiBadRequestResponse({
       description: "Bad Request",
-      example: { err: "잘못된 초대코드입니다. 다시 입력해주세요.", data: null },
+      example: {
+         err: "초대 코드는 문자열입니다. | 초대 코드는 빈 값이 아닙니다. | 잘못된 초대코드입니다. 다시 입력해주세요.",
+         data: null,
+      },
    })
    @ApiForbiddenResponse({
       description: "Forbidden",
@@ -51,11 +55,23 @@ export class RoomController {
    @Post("check-password")
    @ApiOperation({ summary: "비밀번호 확인 API" })
    @ApiHeader({ name: "authentication", description: "초대 코드 확인 시 응답으로 받은 헤더 값" })
+   @ApiBody({
+      schema: {
+         example: {
+            password: "string",
+            userData: {
+               nickname: "string",
+               socketId: "string",
+               character: { eye: "string", color: "string", ghost: "string" },
+            },
+         },
+      },
+   })
    @ApiOkResponse({
       description: "비밀번호 확인",
       example: {
          err: null,
-         data: { password: "1234" },
+         data: "비밀번호 확인 완료되었습니다.",
       },
    })
    @ApiBadRequestResponse({
@@ -90,8 +106,8 @@ export class RoomController {
    async checkPassword(
       @Res({ passthrough: true }) res: Response,
       @Headers("authentication") authenticationCode: string,
-      @Body() data: { password: passwordDto; userData: userDto },
+      @Body() data: passwordDto,
    ) {
-      return await this.roomService.checkPassword(res, authenticationCode, data.password.password, data.userData);
+      return await this.roomService.checkPassword(res, authenticationCode, data);
    }
 }
