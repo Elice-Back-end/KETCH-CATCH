@@ -22,6 +22,7 @@ export class roomSettingDto {
 
    @IsOptional()
    @IsString({ message: "비밀번호는 문자열이어야 합니다." })
+   @IsNotEmpty({ message: "비밀번호는 빈 값이 아니어야 합니다." })
    readonly password: string | null;
 
    @IsBoolean({ message: "힌트는 boolean값이어야 합니다." })
