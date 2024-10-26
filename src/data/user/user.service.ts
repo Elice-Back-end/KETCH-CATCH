@@ -40,7 +40,13 @@ export class UserService {
       this.users.push(userData);
    }
 
+   // 특정 방에 속한 사용자들 조회
    findUsers(roomId: string) {
       return this.users.filter((user) => user.roomId === roomId);
+   }
+
+   // 사용자 조회
+   findOneUser(socketId: string) {
+      return this.users.find((user) => user.socketId === socketId);
    }
 }
