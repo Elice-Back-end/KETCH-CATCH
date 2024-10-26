@@ -10,6 +10,7 @@ import { ConfigModule } from "@nestjs/config";
 @Module({
    imports: [
       ConfigModule.forRoot({
+         envFilePath: ".env",
          isGlobal: true, // 환경변수 전역으로 사용
       }),
       DataModule,
