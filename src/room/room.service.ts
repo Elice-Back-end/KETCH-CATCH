@@ -14,6 +14,8 @@ import * as bcrypt from "bcrypt";
 import { Response } from "express";
 import { passwordDto } from "./dto/password.dto";
 import { AppGateway } from "src/app.gateway";
+import { Users } from "./itf/users.interface";
+import { User } from "./itf/user.interface";
 
 @Injectable()
 export class RoomService {
@@ -282,5 +284,19 @@ export class RoomService {
       };
       foundUser.isCheck = false;
       return payload;
+   }
+
+   // 특정 방에 속한 유저들 조회
+   findUsers(roomId: string): Users {
+      const users: User[] = [];
+      const foundUser = this.userService.findUsers(roomId);
+      let count = 0;
+      users.push(
+         ...foundUser.map((user) => {
+            return { id: ++count, name: user.nickname, score: 100, avatar: user.avatar };
+         }),
+      );
+
+      return { users, host: 1, drawer: 1 };
    }
 }
