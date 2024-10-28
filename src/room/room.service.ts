@@ -13,6 +13,7 @@ import { nanoid } from "nanoid";
 import * as bcrypt from "bcrypt";
 import { Response } from "express";
 import { passwordDto } from "./dto/password.dto";
+import { AppGateway } from "src/app.gateway";
 
 @Injectable()
 export class RoomService {
@@ -27,6 +28,7 @@ export class RoomService {
    constructor(
       private userService: UserService,
       private roomSettingService: RoomSettingService,
+      private appGateway: AppGateway,
    ) {
       this.round = 3;
       this.time = 60;
@@ -242,20 +244,35 @@ export class RoomService {
    }
 
    // 초대 코드 입장
-   async invitedRoom(roomId: string, userData: userDto): Promise<{ isHost: boolean; roomId: string }> {
+   async invitedRoom(userData: userDto, authenticationCode: string): Promise<{ isHost: boolean; roomId: string }> {
       const err = await this.userService.validData(userData);
       if (err === undefined) return; // dto 유효성 검증 오류가 발생한 경우
 
-      if (roomId === undefined || roomId.trim() === "" || roomId === null) {
+      // 초대코드 확인을 안 했을 경우
+      if (authenticationCode === undefined) {
+         this.appGateway.handleError({ err: "초대코드를 확인해주세요.", data: null });
+         return;
       }
 
+      const roomId = authenticationCode;
       const foundRoom = this.roomSettingService.findOneRoom(roomId);
+      // 비밀번호가 없는 경우
+      if (foundRoom.password === null) {
+         this.userService.register({ ...userData, roomId: roomId, isHost: false, isCheck: false });
+         return { isHost: false, roomId: roomId };
+      }
+
       const foundUser = this.userService.findOneUser(userData.socketId);
-      // 방의 패스워드가 존재할 때
-      if (foundRoom.password !== null) {
-         // 비밀번호 확인을 하지 않았을 경우
-         if (foundUser.isCheck === false) {
-         }
+
+      // 유저가 존재하지 않을 경우
+      if (foundUser === undefined) {
+         this.appGateway.handleError({ err: "존재하지 않는 유저입니다. 초대코드를 확인해주세요.", data: null });
+         return;
+      }
+
+      // 비밀번호 확인을 하지 않았을 경우
+      if (foundUser.isCheck === false) {
+         this.appGateway.handleError({ err: "비밀번호를 확인해주세요.", data: null });
       }
 
       // 예외처리 로직 거침(roomId 확인하고 password까지 확인함)
@@ -263,7 +280,7 @@ export class RoomService {
          isHost: false,
          roomId,
       };
-      this.userService.register({ ...userData, roomId, isHost: payload.isHost, isCheck: false });
+      foundUser.isCheck = false;
       return payload;
    }
 }
