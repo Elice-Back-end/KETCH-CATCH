@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { Game_room, Game_user } from './game.interface';
+import { Game_user } from './game.interface';
 import { RoomSettingService } from 'src/data/room/room-setting.service';
 import { UserService } from 'src/data/user/user.service';
-import { RmOptions } from 'fs';
+import { Room } from 'src/data/room/room.interface';
+import { catch_word } from 'src/data/word';
+
 
 @Injectable()
 export class GameService {
@@ -44,7 +46,28 @@ export class GameService {
         return setDefaultUser;
     }
 
-    checkMessage(){
+    setGameRoom(roomId : string){
+        // roomId를 통해 roomID를 가진 room의 정보를 받아옴
+        const setRoom : Room = this.roomSettingService.findOneRoom(roomId);
+        // 게임 시간을 밀리초로 변환
+        const playTime : number = setRoom.time * 1000;
+    }
+
+    // 단어에서 round만큼 랜덤한 숫자를 반환
+    getRandomWorld(roomId:string): string[]{
+        const RWlist = catch_word;
+        const room: Room = this.roomSettingService.findOneRoom(roomId);
+        const round = room.round;
+
+        function getRandomW(RWlist:string[], round:number):string[]{
+            const shuffle = RWlist.sort(()=>0.5 - Math.random());
+            return shuffle.slice(0, round);
+        }
+
+        return getRandomW(RWlist, round);
+    }
+
+    checkMessage(message: string ,roomId: string){
 
     }
 
@@ -56,10 +79,6 @@ export class GameService {
 
     }
 
-    changeDrawer(){
-
-    }
-    
     nextRound(){
 
     }
