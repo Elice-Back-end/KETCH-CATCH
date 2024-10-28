@@ -1,10 +1,9 @@
 export interface User {
    nickname: string;
    socketId: string;
-   character: {
+   avatar: {
       eye: string;
-      color: string;
-      ghost: string;
+      body: string;
    };
    roomId: string;
    isHost: boolean;
