@@ -44,11 +44,6 @@ export class GameService {
         return setDefaultUser;
     }
 
-    // 게임의 설정
-    setGame(socketId:string){
-
-    }
-
     checkMessage(){
 
     }

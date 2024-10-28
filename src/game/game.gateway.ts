@@ -64,8 +64,5 @@ export class GameGateway {
     const GameUsers: Game_user[] = this.gameService.setRandomDrawer(defaultUsers);
     // 유저들의 room에 유저정보 발송
     this.server.to(GameUsers[0].roomId).emit("started game",GameUsers);
-
-    
-    
   }
 }
