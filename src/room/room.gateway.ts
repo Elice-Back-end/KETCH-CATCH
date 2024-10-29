@@ -1,4 +1,10 @@
-import { OnGatewayConnection, SubscribeMessage, WebSocketGateway, WebSocketServer } from "@nestjs/websockets";
+import {
+   ConnectedSocket,
+   OnGatewayConnection,
+   SubscribeMessage,
+   WebSocketGateway,
+   WebSocketServer,
+} from "@nestjs/websockets";
 import { Server, Socket } from "socket.io";
 import { roomSettingDto } from "src/room/dto/room-setting.dto";
 import { userDto } from "src/room/dto/user.dto";
@@ -25,7 +31,7 @@ export class RoomGateway implements OnGatewayConnection {
       const [_, currentRoom] = Array.from(socket.rooms);
       // 다른 방에 들어가있을 경우
       if (currentRoom) {
-         socket.leave(currentRoom);
+         this.roomService.exitRoom(socket);
       }
 
       const payload = await this.roomService.createRoom(data.user, data.roomSetting);
@@ -44,7 +50,7 @@ export class RoomGateway implements OnGatewayConnection {
       const [_, currentRoom] = Array.from(socket.rooms);
       // 다른 방에 들어가있을 경우
       if (currentRoom) {
-         socket.leave(currentRoom);
+         this.roomService.exitRoom(socket);
       }
 
       // Room List 복사
@@ -68,15 +74,25 @@ export class RoomGateway implements OnGatewayConnection {
       const [_, currentRoom] = Array.from(socket.rooms);
       // 다른 방에 들어가있을 경우
       if (currentRoom) {
-         socket.leave(currentRoom);
+         this.roomService.exitRoom(socket);
       }
 
       const payload = await this.roomService.invitedRoom(data.user, data.authenticationCode);
       if (payload === undefined) return;
 
       socket.join(payload.roomId);
+
       // roomId 방에 있는 유저들 정보 보냄
       this.server.to(payload.roomId).emit("join-room", this.roomService.findUsers(payload.roomId));
       socket.emit("entranced-invited-room", payload);
+   }
+
+   // 방 나가기
+   @SubscribeMessage("exit-room")
+   exitRoom(@ConnectedSocket() socket: Socket) {
+      const roomId = this.roomService.exitRoom(socket);
+
+      socket.emit("exited-room", "방을 나갔습니다.");
+      this.server.emit("join-room", this.roomService.findUsers(roomId));
    }
 }
