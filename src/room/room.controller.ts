@@ -1,13 +1,15 @@
-import { Body, Controller, Headers, Post, Res } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Post, Redirect, Res } from "@nestjs/common";
 import {
    ApiBadRequestResponse,
    ApiBody,
    ApiForbiddenResponse,
    ApiHeader,
    ApiInternalServerErrorResponse,
+   ApiMovedPermanentlyResponse,
    ApiNotFoundResponse,
    ApiOkResponse,
    ApiOperation,
+   ApiParam,
    ApiTags,
    ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
@@ -109,5 +111,19 @@ export class RoomController {
       @Body() data: passwordDto,
    ) {
       return await this.roomService.checkPassword(res, authenticationCode, data);
+   }
+
+   // url 입장 시
+   @Get(":roomId")
+   @Redirect(process.env.HOMEPAGE_URL, 301)
+   @ApiOperation({ summary: "URL 입장 API" })
+   @ApiParam({ name: "roomId", description: "방 ID" })
+   @ApiMovedPermanentlyResponse({ description: "홈페이지로 이동" })
+   @ApiInternalServerErrorResponse({
+      description: "Internal Server Error",
+      example: { err: "서버 오류입니다. 잠시 후 다시 시도해주세요.", data: null },
+   })
+   entranceUrl() {
+      return { url: process.env.HOMEPAGE_URL };
    }
 }
