@@ -23,7 +23,8 @@ export class GameService {
         const GameUsers: Game_user[] = users.map(user => ({
             ...user,
             isDrawer : false,
-            score : 0
+            score : 0,
+            isCorrect : false
         }));
 
         // 게임유저정보 반환
@@ -54,12 +55,12 @@ export class GameService {
     }
 
     // 단어에서 round만큼 랜덤한 숫자를 반환
-    getRandomWorld(roomId:string): string[]{
+    getRandomWorld(roomId:string): object[]{
         const RWlist = catch_word;
         const room: Room = this.roomSettingService.findOneRoom(roomId);
         const round = room.round;
 
-        function getRandomW(RWlist:string[], round:number):string[]{
+        function getRandomW(RWlist: object[], round:number):object[]{
             const shuffle = RWlist.sort(()=>0.5 - Math.random());
             return shuffle.slice(0, round);
         }
@@ -79,8 +80,21 @@ export class GameService {
 
     }
 
-    nextRound(){
+    nextRound(GameUsers:Game_user[]){
+        // 정답자들을 false로 변경
+        const setDefaultUser = GameUsers.map(user =>({
+            ...user,
+            isCorrect : false
+        }));
 
+        // 현재 라운드를 1올림
+        // 모두정답 , 시간초과 , 넘어가기버튼
+
+    }
+
+    finishGame(){
+        // 게임끝나고 랭킹 넘길때, 게임 중 유저객체를 넘길때 처럼 넘겨주냐 아니면 랭킹에 관한 정보만 넘겨주냐?
+        // 저희가 걸러주는게 맞나요?
     }
 
     GoToHome(){

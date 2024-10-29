@@ -6,11 +6,11 @@ import { RoomSettingService } from 'src/data/room/room-setting.service';
 import { Room } from 'src/data/room/room.interface';
 import { UserService } from 'src/data/user/user.service';
 import { User } from 'src/data/user/user.interface';
-import { forwardRef, Inject } from '@nestjs/common';
+
 //채팅담당 게이트웨이
 @WebSocketGateway({
   //네임스페이스 chat 설정
-  namespace : "chat",
+  namespace : "catchmind",
   //모든 접근자 초기화
   cors : {
     origin : "*",
@@ -50,7 +50,7 @@ export class ChatGateway{
 // 게임 담당 게이트웨이
 @WebSocketGateway({
   //네임스페이스 game 설정
-  namespace : "game",
+  namespace : "catchmind",
   //모든 접근자 초기화
   cors : {
     origin : "*",
@@ -78,3 +78,4 @@ export class GameGateway {
     this.roomSettingService.gameStart(GameUsers[0].roomId);
   }
 }
+
