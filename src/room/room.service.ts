@@ -16,6 +16,7 @@ import { passwordDto } from "./dto/password.dto";
 import { AppGateway } from "src/app.gateway";
 import { Users } from "./itf/users.interface";
 import { User } from "./itf/user.interface";
+import { Socket } from "socket.io";
 
 @Injectable()
 export class RoomService {
@@ -298,5 +299,14 @@ export class RoomService {
       );
 
       return { users, host: 1, drawer: 1 };
+   }
+
+   // 방 나가기
+   exitRoom(socket: Socket): string {
+      const [_, currentRoom] = Array.from(socket.rooms);
+      socket.leave(currentRoom);
+
+      this.userService.deleteUser(socket.id);
+      return currentRoom;
    }
 }
