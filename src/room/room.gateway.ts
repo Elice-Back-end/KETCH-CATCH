@@ -26,7 +26,7 @@ export class RoomGateway implements OnGatewayConnection {
    }
 
    // 방 생성
-   @SubscribeMessage("make-room")
+   @SubscribeMessage("create-room")
    async createRoom(socket: Socket, data: { user: userDto; roomSetting: roomSettingDto }) {
       const [_, currentRoom] = Array.from(socket.rooms);
       // 다른 방에 들어가있을 경우
@@ -41,7 +41,7 @@ export class RoomGateway implements OnGatewayConnection {
       socket.join(payload.roomId);
       // roomId 방에 있는 유저들 정보 보냄
       this.server.to(payload.roomId).emit("join-room", this.roomService.findUsers(payload.roomId));
-      socket.emit("made-room", payload);
+      socket.emit("created-room", payload);
    }
 
    // 랜덤 룸 입장
@@ -87,15 +87,6 @@ export class RoomGateway implements OnGatewayConnection {
       socket.emit("entranced-invited-room", payload);
    }
 
-   // 방 나가기
-   @SubscribeMessage("exit-room")
-   exitRoom(@ConnectedSocket() socket: Socket) {
-      const roomId = this.roomService.exitRoom(socket);
-
-      socket.emit("exited-room", "방을 나갔습니다.");
-      this.server.emit("join-room", this.roomService.findUsers(roomId));
-   }
-
    // 방 수정
    @SubscribeMessage("update-room")
    async updateRoom(socket: Socket, roomSetting: roomSettingDto) {
@@ -104,5 +95,16 @@ export class RoomGateway implements OnGatewayConnection {
 
       this.server.to(roomId).emit("pending-room", { ...roomSetting });
       this.server.to(roomId).emit("notice", { message: "방 설정이 수정되었습니다." });
+   }
+
+   // 방 나가기
+   @SubscribeMessage("leave-room")
+   exitRoom(@ConnectedSocket() socket: Socket) {
+      const { roomId, nickname } = this.roomService.exitRoom(socket);
+      if (roomId === undefined || nickname === undefined) return;
+
+      socket.emit("left-room", "방을 나갔습니다.");
+      this.server.to(roomId).emit("notice", { message: `${nickname}님이 방을 나갔습니다.` });
+      this.server.to(roomId).emit("join-room", this.roomService.findUsers(roomId));
    }
 }
