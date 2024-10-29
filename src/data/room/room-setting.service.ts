@@ -36,4 +36,13 @@ export class RoomSettingService {
    findOneRoom(roomId: string): Room {
       return this.room.find((room) => room.roomId === roomId);
    }
+
+   // 게임시작
+   gameStart(roomId: string){
+      this.room.forEach((room) => {
+         if(room.roomId === roomId){
+            room.isStart = true;
+         }         
+      });
+   }
 }
