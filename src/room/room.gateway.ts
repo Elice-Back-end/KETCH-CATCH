@@ -11,7 +11,7 @@ import { userDto } from "src/room/dto/user.dto";
 import { RoomService } from "./room.service";
 import { RoomSettingService } from "src/data/room/room-setting.service";
 
-@WebSocketGateway({ namespace: "room" })
+@WebSocketGateway({ namespace: "katch-catch" })
 export class RoomGateway implements OnGatewayConnection {
    @WebSocketServer() server: Server;
 
@@ -94,5 +94,15 @@ export class RoomGateway implements OnGatewayConnection {
 
       socket.emit("exited-room", "방을 나갔습니다.");
       this.server.emit("join-room", this.roomService.findUsers(roomId));
+   }
+
+   // 방 수정
+   @SubscribeMessage("update-room")
+   async updateRoom(socket: Socket, roomSetting: roomSettingDto) {
+      const roomId = await this.roomService.updateRoom(socket.id, roomSetting);
+      if (roomId === undefined) return; // 오류 발생 시
+
+      this.server.to(roomId).emit("pending-room", { ...roomSetting });
+      this.server.to(roomId).emit("notice", { message: "방 설정이 수정되었습니다." });
    }
 }

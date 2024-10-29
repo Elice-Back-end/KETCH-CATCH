@@ -309,4 +309,32 @@ export class RoomService {
       this.userService.deleteUser(socket.id);
       return currentRoom;
    }
+
+   // 방 수정
+   async updateRoom(socketId: string, updateRoomData: roomSettingDto) {
+      const err = await this.roomSettingService.validData(updateRoomData);
+      if (err === undefined) return; // dto 유효성 검증 오류가 발생한 경우
+
+      const foundUser = this.userService.findOneUser(socketId);
+      // 유저가 존재하지 않는 경우
+      if (foundUser === undefined) {
+         this.appGateway.handleError({ err: "존재하지 않는 유저입니다.", data: null });
+         return;
+      }
+
+      // 호스트가 아닌 경우
+      if (foundUser.isHost === false) {
+         this.appGateway.handleError({ err: "호스트만 설정을 바꿀 수 있습니다.", data: null });
+      }
+      const roomId = foundUser.roomId;
+      const foundRoom = this.roomSettingService.findOneRoom(roomId);
+      // 방이 존재하지 않는 경우
+      if (foundRoom === undefined) {
+         this.appGateway.handleError({ err: "종료된 방입니다.", data: null });
+         return;
+      }
+
+      this.roomSettingService.updateRoom(foundRoom.roomId, updateRoomData);
+      return roomId;
+   }
 }
