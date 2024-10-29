@@ -49,4 +49,9 @@ export class UserService {
    findOneUser(socketId: string) {
       return this.users.find((user) => user.socketId === socketId);
    }
+
+   // 사용자 제거
+   deleteUser(socketId: string) {
+      this.users = this.users.filter((user) => user.socketId !== socketId);
+   }
 }
