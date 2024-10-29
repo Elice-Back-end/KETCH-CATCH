@@ -301,15 +301,6 @@ export class RoomService {
       return { users, host: 1, drawer: 1 };
    }
 
-   // 방 나가기
-   exitRoom(socket: Socket): string {
-      const [_, currentRoom] = Array.from(socket.rooms);
-      socket.leave(currentRoom);
-
-      this.userService.deleteUser(socket.id);
-      return currentRoom;
-   }
-
    // 방 수정
    async updateRoom(socketId: string, updateRoomData: roomSettingDto) {
       const err = await this.roomSettingService.validData(updateRoomData);
@@ -336,5 +327,37 @@ export class RoomService {
 
       this.roomSettingService.updateRoom(foundRoom.roomId, updateRoomData);
       return roomId;
+   }
+
+   // 방 나가기
+   exitRoom(socket: Socket) {
+      const foundUser = this.userService.findOneUser(socket.id);
+      // 유저가 없는 경우
+      if (foundUser === undefined) {
+         this.appGateway.handleError({ err: "존재하지 않는 유저입니다.", data: null });
+         return;
+      }
+
+      this.userService.deleteUser(socket.id);
+
+      const [_, currentRoom] = Array.from(socket.rooms);
+      const roomId = foundUser.roomId;
+      const foundUsers = this.userService.findUsers(roomId);
+
+      // 방에 아무도 없을 경우
+      if (foundUsers.length === 0) {
+         this.roomSettingService.deleteRoom(roomId);
+         return;
+      }
+
+      // 나가려는 유저가 호스트인 경우
+      if (foundUser.isHost) {
+         const randomIndex = Math.floor(Math.random() * foundUsers.length);
+         foundUsers[randomIndex].isHost = true;
+      }
+
+      socket.leave(currentRoom); // 방 나가기
+
+      return { roomId, nickname: foundUser.nickname };
    }
 }
