@@ -76,6 +76,15 @@ export class RoomService {
 
       if (err.every((result) => result !== undefined) === false) return; // dto 유효성 검증 오류가 발생한 경우
 
+      // 아바타 이미지가 조건에 부합하지 않는 경우
+      if (
+         new RegExp(process.env.EYE_IMAGE_REX).test(userData.avatar.eye) === false ||
+         new RegExp(process.env.BODY_IMAGE_REX).test(userData.avatar.body) === false
+      ) {
+         this.appGateway.handleError({ err: "잘못된 이미지입니다. 다시 선택해주세요.", data: null });
+         return;
+      }
+
       const roomId = nanoid(); // 랜덤한 roomId 생성
       const payload: { isHost: boolean; roomId: string } = {
          isHost: true,
@@ -107,6 +116,15 @@ export class RoomService {
    ): Promise<{ isHost: boolean; roomId: string }> {
       const err = await this.userService.validData(userData);
       if (err === undefined) return; // dto 유효성 검증 오류가 발생한 경우
+
+      // 아바타 이미지가 조건에 부합하지 않는 경우
+      if (
+         new RegExp(process.env.EYE_IMAGE_REX).test(userData.avatar.eye) === false ||
+         new RegExp(process.env.BODY_IMAGE_REX).test(userData.avatar.body) === false
+      ) {
+         this.appGateway.handleError({ err: "잘못된 이미지입니다. 다시 선택해주세요.", data: null });
+         return;
+      }
 
       // randomRoomId 생성
       let randomIndex = Math.floor(Math.random() * roomList.length);
@@ -203,6 +221,14 @@ export class RoomService {
 
          const { password, userData } = data;
 
+         // 아바타 이미지가 조건에 부합하지 않는 경우
+         if (
+            new RegExp(process.env.EYE_IMAGE_REX).test(userData.avatar.eye) === false ||
+            new RegExp(process.env.BODY_IMAGE_REX).test(userData.avatar.body) === false
+         ) {
+            throw new BadRequestException({ err: "잘못된 이미지입니다. 다시 선택해주세요.", data: null });
+         }
+
          const foundRoom = this.roomSettingService.findOneRoom(authenticationCode);
          // 방이 없는 경우
          if (foundRoom === undefined) {
@@ -250,6 +276,15 @@ export class RoomService {
    async invitedRoom(userData: userDto, authenticationCode: string): Promise<{ isHost: boolean; roomId: string }> {
       const err = await this.userService.validData(userData);
       if (err === undefined) return; // dto 유효성 검증 오류가 발생한 경우
+
+      // 아바타 이미지가 조건에 부합하지 않는 경우
+      if (
+         new RegExp(process.env.EYE_IMAGE_REX).test(userData.avatar.eye) === false ||
+         new RegExp(process.env.BODY_IMAGE_REX).test(userData.avatar.body) === false
+      ) {
+         this.appGateway.handleError({ err: "잘못된 이미지입니다. 다시 선택해주세요.", data: null });
+         return;
+      }
 
       // 초대코드 확인을 안 했을 경우
       if (authenticationCode === undefined) {
@@ -357,7 +392,6 @@ export class RoomService {
       }
 
       socket.leave(currentRoom); // 방 나가기
-
       return { roomId, nickname: foundUser.nickname };
    }
 }
