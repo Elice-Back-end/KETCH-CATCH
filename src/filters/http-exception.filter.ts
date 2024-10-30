@@ -30,9 +30,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
             ? exception.getResponse()
             : { err: "서버 오류입니다. 잠시 후 다시 시도해주세요.", data: null };
 
-      // 에러메시지 타입이 문자열인 경우 {err: "에러 메새지", data: null} 형태로 바꿔줌
-      const err = typeof errRes === "string" ? { err: errRes, data: null } : errRes;
+      // dto 유효성 검증 오류 났을 경우 or 문자열로 들어왔을 경우
+      // {err: "메시지", data: null} 형식으로 포맷팅
+      const err =
+         (typeof errRes === "object" && (errRes as any).message) || typeof errRes === "string"
+            ? { err: (errRes as any).message, data: null }
+            : errRes;
       // 상태 코드, 에러 메시지 보냄
-      res.status(status).json({ ...err });
+      res.status(status).json(err);
    }
 }
