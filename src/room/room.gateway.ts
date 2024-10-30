@@ -55,7 +55,12 @@ export class RoomGateway implements OnGatewayConnection {
 
       // Room List 복사
       let roomList = this.roomSettingService.room.map((room) => {
-         return { roomId: room.roomId, person: room.person, password: room.password, isStart: room.isStart };
+         return {
+            roomId: room.roomId,
+            participants: room.participants,
+            password: room.password,
+            isStart: room.isStart,
+         };
       });
 
       const payload = await this.roomService.randomRoom(data.user, roomList);
@@ -103,7 +108,6 @@ export class RoomGateway implements OnGatewayConnection {
       const { roomId, nickname } = this.roomService.exitRoom(socket);
       if (roomId === undefined || nickname === undefined) return;
 
-      socket.emit("left-room", "방을 나갔습니다.");
       this.server.to(roomId).emit("notice", { message: `${nickname}님이 방을 나갔습니다.` });
       this.server.to(roomId).emit("join-room", this.roomService.findUsers(roomId));
    }
