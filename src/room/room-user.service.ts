@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { RoomSettingService } from "src/data/room/room-setting.service";
 import { UserService } from "src/data/user/user.service";
-import { GameState } from "./itf/gameState.interface";
+import { GameState } from "../game/types/gameState";
 
 @Injectable()
 export class RoomUserService {

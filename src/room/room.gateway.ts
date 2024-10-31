@@ -11,7 +11,7 @@ import { userDto } from "src/room/dto/user.dto";
 import { RoomService } from "./room.service";
 import { RoomSettingService } from "src/data/room/room-setting.service";
 import { passwordDto } from "./dto/password.dto";
-import { GameState } from "./itf/gameState.interface";
+import { GameState } from "../game/types/gameState";
 
 @WebSocketGateway({ namespace: "ketch-catch" })
 export class RoomGateway implements OnGatewayConnection {
