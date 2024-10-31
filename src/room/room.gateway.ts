@@ -11,7 +11,7 @@ import { userDto } from "src/room/dto/user.dto";
 import { RoomService } from "./room.service";
 import { RoomSettingService } from "src/data/room/room-setting.service";
 
-@WebSocketGateway({ namespace: "katch-catch" })
+@WebSocketGateway({ namespace: "ketch-catch" })
 export class RoomGateway implements OnGatewayConnection {
    @WebSocketServer() server: Server;
 
