@@ -28,4 +28,10 @@ export class UserService {
       const users = this.findUsers(roomId);
       return users.find((user) => user.socketId === socketId);
    }
+
+   // 유저 제거
+   deleteUser(roomId: string, socketId: string) {
+      const remainUsers = this.users.get(roomId).filter((user) => user.socketId !== socketId);
+      this.users.set(roomId, remainUsers);
+   }
 }
