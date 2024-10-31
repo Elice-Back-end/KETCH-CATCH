@@ -1,10 +1,4 @@
-import {
-   BadRequestException,
-   ForbiddenException,
-   Injectable,
-   NotFoundException,
-   UnauthorizedException,
-} from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { userDto } from "./dto/user.dto";
 import { roomSettingDto } from "./dto/room-setting.dto";
 import { UserService } from "src/data/user/user.service";
@@ -14,9 +8,8 @@ import * as bcrypt from "bcrypt";
 import { Response } from "express";
 import { passwordDto } from "./dto/password.dto";
 import { AppGateway } from "src/app.gateway";
-import { Users } from "./itf/users.interface";
-import { User } from "./itf/user.interface";
-import { Socket } from "socket.io";
+import { RoomUserService } from "./room-user.service";
+import { DtoService } from "./dto/dto.service";
 
 @Injectable()
 export class RoomService {
@@ -25,19 +18,19 @@ export class RoomService {
    private participants: number;
    private gameMode: string;
    private password: string | null;
-   private isCheck: boolean;
 
    constructor(
       private userService: UserService,
       private roomSettingService: RoomSettingService,
       private appGateway: AppGateway,
+      private roomUserService: RoomUserService,
+      private dtoService: DtoService,
    ) {
       this.round = 3;
       this.time = 60;
       this.participants = 4;
       this.gameMode = "easy mode";
       this.password = null;
-      this.isCheck = false;
    }
 
    // 초기 방 생성
@@ -57,32 +50,27 @@ export class RoomService {
       for (let i = 0; i < 5; i++) {
          let roomId = nanoid();
          randomRoomList.push(roomId);
+         this.userService.initialRoom(roomId);
          this.roomSettingService.registerRoom({ roomId, ...payload });
       }
       return randomRoomList;
    }
 
    // room 생성
-   async createRoom(userData: userDto, roomData: roomSettingDto): Promise<{ isHost: boolean; roomId: string }> {
-      const err = await Promise.all([
-         this.userService.validData(userData),
-         this.roomSettingService.validData(roomData),
-      ]);
+   async createRoom(socketId: string, userData: userDto, roomData: roomSettingDto) {
+      // dto 유효성 검증
+      const err = await Promise.all([this.dtoService.userValidData(userData), this.dtoService.roomValidData(roomData)]);
+
+      if (err.every((result) => result !== undefined) === false) return { roomId: undefined, users: undefined }; // dto 유효성 검증 오류가 발생한 경우
 
       const { round, time, participants, gameMode, password } = roomData;
-
-      if (err.every((result) => result !== undefined) === false) return; // dto 유효성 검증 오류가 발생한 경우
-
       const roomId = nanoid(); // 랜덤한 roomId 생성
-      const payload: { isHost: boolean; roomId: string } = {
-         isHost: true,
-         roomId,
-      };
-
       // 패스워드가 null이 아닌 경우 해시화
       const roomPassword = password === null ? null : await bcrypt.hash(password, 10);
 
-      this.userService.register({ ...userData, roomId, isHost: payload.isHost, isCheck: this.isCheck });
+      // 사용자 등록
+      this.userService.register(roomId, { socketId, ...userData, isHost: true });
+      // room 등록
       this.roomSettingService.registerRoom({
          roomId,
          round,
@@ -92,17 +80,19 @@ export class RoomService {
          password: roomPassword,
          isStart: false,
       });
-
-      return payload;
+      // client로 보낼 유저들 정보
+      const users = this.roomUserService.getUsers(roomId);
+      return { roomId, users };
    }
 
    // 랜덤 room 입장
    async randomRoom(
+      socketId: string,
       userData: userDto,
       roomList: { roomId: string; participants: number; password: string | null; isStart: boolean }[],
-   ): Promise<{ isHost: boolean; roomId: string }> {
-      const err = await this.userService.validData(userData);
-      if (err === undefined) return; // dto 유효성 검증 오류가 발생한 경우
+   ) {
+      const err = await this.dtoService.userValidData(userData);
+      if (err === undefined) return { roomId: undefined, users: undefined }; // dto 유효성 검증 오류가 발생한 경우
 
       // randomRoomId 생성
       let randomIndex = Math.floor(Math.random() * roomList.length);
@@ -110,40 +100,35 @@ export class RoomService {
 
       // 방이 존재하지 않을 경우
       if (roomList[randomIndex] === undefined) {
-         const randomRoomList = this.initialCreateRoom();
+         const randomRoomList = this.initialCreateRoom(); // 방 생성
          randomIndex = Math.floor(Math.random() * randomRoomList.length);
+         const roomId = randomRoomList[randomIndex]; // 랜덤 방 ID
          isHost = true;
-         const payload = {
-            isHost,
-            roomId: randomRoomList[randomIndex],
-         };
 
-         this.userService.register({ ...userData, roomId: payload.roomId, isHost, isCheck: this.isCheck });
-         return payload;
+         // 유저 등록
+         this.userService.register(roomId, { socketId, ...userData, isHost });
+         const users = this.roomUserService.getUsers(roomId);
+         return { roomId, users };
       }
 
       const { roomId, participants, password, isStart } = roomList[randomIndex];
       // roomId인 방에 속해있는 참여자들 조회
       const foundParticipants = this.userService.findUsers(roomId);
-      let payload: { isHost: boolean; roomId: string } = {
-         isHost,
-         roomId,
-      };
 
       // full방일 경우, 게임 시작했을 경우, 비밀번호 존재할 경우
+      // 다른 random 방 찾음
       if (foundParticipants.length === participants || password !== null || isStart === true) {
          roomList = roomList.filter((room) => room.roomId !== roomId);
-         return this.randomRoom(userData, roomList);
+         return this.randomRoom(socketId, userData, roomList);
       }
 
-      // 방에 처음 들어온 사람인 경우(= host인 경우)
-      if (foundParticipants.length === 0) {
-         payload.isHost = true;
-         this.userService.register({ ...userData, roomId, isHost: payload.isHost, isCheck: this.isCheck });
-         return payload;
-      }
-      this.userService.register({ ...userData, roomId, isHost, isCheck: this.isCheck });
-      return payload;
+      // 방에 처음 들어온 사람인 경우(= host인 경우) -> isHost = true
+      // 아니면 false
+      isHost = foundParticipants.length === 0 ? true : false;
+      this.userService.register(roomId, { socketId, ...userData, isHost });
+      // client로 보낼 유저들 정보
+      const users = this.roomUserService.getUsers(roomId);
+      return { roomId, users };
    }
 
    // 초대코드 확인
@@ -191,176 +176,143 @@ export class RoomService {
    }
 
    // 비밀번호 확인
-   async checkPassword(res: Response, authenticationCode: string, data: passwordDto) {
-      try {
-         if (authenticationCode === undefined || authenticationCode.trim() === "" || authenticationCode === null) {
-            throw new UnauthorizedException({ err: "초대코드를 확인해주세요.", data: null });
-         }
-
-         const { password, userData } = data;
-
-         // 아바타 이미지가 조건에 부합하지 않는 경우
-         if (
-            new RegExp(process.env.EYE_IMAGE_REX).test(userData.avatar.eye) === false ||
-            new RegExp(process.env.BODY_IMAGE_REX).test(userData.avatar.body) === false
-         ) {
-            throw new BadRequestException({ err: "잘못된 이미지입니다. 다시 선택해주세요.", data: null });
-         }
-
-         const foundRoom = this.roomSettingService.findOneRoom(authenticationCode);
-         // 방이 없는 경우
-         if (foundRoom === undefined) {
-            throw new NotFoundException({
-               err: "종료된 방입니다. 홈페이지로 돌아갑니다.",
-               redirectUrl: process.env.HOMEPAGE_URL,
-            });
-         }
-
-         // 비밀번호가 null이 아닌 경우
-         if (foundRoom.password !== null) {
-            const isPassword = await bcrypt.compare(password, foundRoom.password);
-
-            // 비밀번호가 일치하지 않는 경우
-            if (isPassword === false) {
-               throw new BadRequestException("비밀번호가 일치하지 않습니다.");
-            }
-         }
-
-         // 게임이 시작했을 경우
-         if (foundRoom.isStart) {
-            throw new ForbiddenException({
-               err: "이미 게임이 시작되어 입장이 불가합니다.",
-               redirectUrl: process.env.HOMEPAGE_URL,
-            });
-         }
-
-         // 인원이 다 찼을 경우
-         const foundParticipants = this.userService.findUsers(authenticationCode);
-         if (foundRoom.participants <= foundParticipants.length) {
-            throw new ForbiddenException({
-               err: "참여 인원 초과로 입장이 불가합니다.",
-               redirectUrl: process.env.HOMEPAGE_URL,
-            });
-         }
-
-         this.userService.register({ ...userData, roomId: authenticationCode, isHost: false, isCheck: true });
-         res.status(200).json({ err: null, data: "비밀번호 확인되었습니다." });
-      } catch (e) {
-         throw e;
-      }
-   }
-
-   // 초대 코드 입장
-   async invitedRoom(userData: userDto, authenticationCode: string): Promise<{ isHost: boolean; roomId: string }> {
-      const err = await this.userService.validData(userData);
-      if (err === undefined) return; // dto 유효성 검증 오류가 발생한 경우
-
-      // 초대코드 확인을 안 했을 경우
-      if (authenticationCode === undefined) {
+   async checkPassword(authenticationCode: string, password: string) {
+      if (authenticationCode === undefined || authenticationCode.trim() === "" || authenticationCode === null) {
          this.appGateway.handleError({ err: "초대코드를 확인해주세요.", data: null });
          return;
       }
 
       const roomId = authenticationCode;
       const foundRoom = this.roomSettingService.findOneRoom(roomId);
+      // 방이 없는 경우
+      if (foundRoom === undefined) {
+         this.appGateway.handleError({
+            err: "종료된 방입니다. 홈페이지로 돌아갑니다.",
+            redirectUrl: process.env.HOMEPAGE_URL,
+         });
+         return;
+      }
+
+      // 비밀번호가 null이 아닌 경우
+      if (foundRoom.password !== null) {
+         const isPassword = await bcrypt.compare(password, foundRoom.password);
+
+         // 비밀번호가 일치하지 않는 경우
+         if (isPassword === false) {
+            this.appGateway.handleError({ err: "비밀번호가 일치하지 않습니다.", data: null });
+            return;
+         }
+      }
+
+      // 게임이 시작했을 경우
+      if (foundRoom.isStart) {
+         this.appGateway.handleError({
+            err: "이미 게임이 시작되어 입장이 불가합니다.",
+            redirectUrl: process.env.HOMEPAGE_URL,
+         });
+         return;
+      }
+
+      // 인원이 다 찼을 경우
+      const foundParticipants = this.userService.findUsers(roomId);
+      if (foundRoom.participants <= foundParticipants.length) {
+         this.appGateway.handleError({
+            err: "참여 인원 초과로 입장이 불가합니다.",
+            redirectUrl: process.env.HOMEPAGE_URL,
+         });
+         return;
+      }
+      return true;
+   }
+
+   // 초대 코드 입장
+   async invitedRoom(socketId: string, userData: userDto, authenticationCode: string, password: passwordDto) {
+      const err = await Promise.all([
+         this.dtoService.userValidData(userData),
+         this.dtoService.passwordValidData(password),
+      ]);
+
+      if (err.every((result) => result !== undefined) === false) return { roomId: undefined, users: undefined }; // dto 유효성 검증 오류가 발생한 경우
+
+      const roomId = this.roomSettingService.room[parseInt(authenticationCode)].roomId;
+      console.log(roomId);
+      console.log(`socketId : ${socketId}`);
+
+      const foundRoom = this.roomSettingService.findOneRoom(roomId);
+
       // 비밀번호가 없는 경우
       if (foundRoom.password === null) {
-         this.userService.register({ ...userData, roomId: roomId, isHost: false, isCheck: false });
-         return { isHost: false, roomId: roomId };
+         this.userService.register(roomId, { socketId, ...userData, isHost: false });
+         const users = this.roomUserService.getUsers(roomId);
+         console.log(this.userService.findUsers(roomId));
+         return { roomId, users };
       }
 
-      const foundUser = this.userService.findOneUser(userData.socketId);
+      const isCheck = await this.checkPassword(authenticationCode, password.password);
+      if (isCheck === undefined) return { roomId: undefined, users: undefined };
+      // 유저 등록
+      this.userService.register(roomId, { ...userData, socketId, isHost: false });
 
-      // 유저가 존재하지 않을 경우
-      if (foundUser === undefined) {
-         this.appGateway.handleError({ err: "존재하지 않는 유저입니다. 초대코드를 확인해주세요.", data: null });
-         return;
-      }
+      const users = this.roomUserService.getUsers(roomId);
 
-      // 비밀번호 확인을 하지 않았을 경우
-      if (foundUser.isCheck === false) {
-         this.appGateway.handleError({ err: "비밀번호를 확인해주세요.", data: null });
-      }
-
-      // 예외처리 로직 거침(roomId 확인하고 password까지 확인함)
-      const payload: { isHost: boolean; roomId: string } = {
-         isHost: false,
-         roomId,
-      };
-      foundUser.isCheck = false;
-      return payload;
+      return { roomId, users };
    }
 
-   // 특정 방에 속한 유저들 조회
-   findUsers(roomId: string): Users {
-      const users: User[] = [];
-      const foundUser = this.userService.findUsers(roomId);
-      let count = 0;
-      users.push(
-         ...foundUser.map((user) => {
-            return { id: ++count, name: user.nickname, score: 100, avatar: user.avatar };
-         }),
-      );
+   //    // 방 수정
+   //    async updateRoom(socketId: string, updateRoomData: roomSettingDto) {
+   //       const err = await this.roomSettingService.validData(updateRoomData);
+   //       if (err === undefined) return; // dto 유효성 검증 오류가 발생한 경우
 
-      return { users, host: 1, drawer: 1 };
-   }
+   //       const foundUser = this.userService.findOneUser(socketId);
+   //       // 유저가 존재하지 않는 경우
+   //       if (foundUser === undefined) {
+   //          this.appGateway.handleError({ err: "존재하지 않는 유저입니다.", data: null });
+   //          return;
+   //       }
 
-   // 방 수정
-   async updateRoom(socketId: string, updateRoomData: roomSettingDto) {
-      const err = await this.roomSettingService.validData(updateRoomData);
-      if (err === undefined) return; // dto 유효성 검증 오류가 발생한 경우
+   //       // 호스트가 아닌 경우
+   //       if (foundUser.isHost === false) {
+   //          this.appGateway.handleError({ err: "호스트만 설정을 바꿀 수 있습니다.", data: null });
+   //       }
+   //       const roomId = foundUser.roomId;
+   //       const foundRoom = this.roomSettingService.findOneRoom(roomId);
+   //       // 방이 존재하지 않는 경우
+   //       if (foundRoom === undefined) {
+   //          this.appGateway.handleError({ err: "종료된 방입니다.", data: null });
+   //          return;
+   //       }
 
-      const foundUser = this.userService.findOneUser(socketId);
-      // 유저가 존재하지 않는 경우
-      if (foundUser === undefined) {
-         this.appGateway.handleError({ err: "존재하지 않는 유저입니다.", data: null });
-         return;
-      }
+   //       this.roomSettingService.updateRoom(foundRoom.roomId, updateRoomData);
+   //       return roomId;
+   //    }
 
-      // 호스트가 아닌 경우
-      if (foundUser.isHost === false) {
-         this.appGateway.handleError({ err: "호스트만 설정을 바꿀 수 있습니다.", data: null });
-      }
-      const roomId = foundUser.roomId;
-      const foundRoom = this.roomSettingService.findOneRoom(roomId);
-      // 방이 존재하지 않는 경우
-      if (foundRoom === undefined) {
-         this.appGateway.handleError({ err: "종료된 방입니다.", data: null });
-         return;
-      }
+   //    // 방 나가기
+   //    exitRoom(socket: Socket) {
+   //       const [_, currentRoom] = Array.from(socket.rooms); // _ : 자기 자신, currentRoom : 현재 속해 있는 방
+   //       socket.leave(currentRoom); // 방 떠나기
 
-      this.roomSettingService.updateRoom(foundRoom.roomId, updateRoomData);
-      return roomId;
-   }
+   //       const foundUser = this.userService.findOneUser(socket.id);
 
-   // 방 나가기
-   exitRoom(socket: Socket) {
-      const foundUser = this.userService.findOneUser(socket.id);
-      // 유저가 없는 경우
-      if (foundUser === undefined) {
-         this.appGateway.handleError({ err: "존재하지 않는 유저입니다.", data: null });
-         return;
-      }
+   //       // 유저가 없는 경우
+   //       if (foundUser === undefined) return;
 
-      this.userService.deleteUser(socket.id);
+   //       const roomId = foundUser.roomId;
 
-      const [_, currentRoom] = Array.from(socket.rooms);
-      const roomId = foundUser.roomId;
-      const foundUsers = this.userService.findUsers(roomId);
+   //       // 유저가 나간 방에 존재하는 다른 유저들
+   //       const foundUsers = this.userService.findUsers(roomId);
 
-      // 방에 아무도 없을 경우
-      if (foundUsers.length === 0) {
-         this.roomSettingService.deleteRoom(roomId);
-         return;
-      }
+   //       // 방에 아무도 없을 경우
+   //       if (foundUsers.length === 0) {
+   //          this.roomSettingService.deleteRoom(roomId);
+   //          return;
+   //       }
 
-      // 나가려는 유저가 호스트인 경우
-      if (foundUser.isHost) {
-         const randomIndex = Math.floor(Math.random() * foundUsers.length);
-         foundUsers[randomIndex].isHost = true;
-      }
+   //       // 나간 유저가 호스트인 경우
+   //       if (foundUser.isHost) {
+   //          // 그 다음으로 들어온 유저가 호스트
+   //          foundUsers[0].isHost = true;
+   //       }
 
-      socket.leave(currentRoom); // 방 나가기
-      return { roomId, nickname: foundUser.nickname };
-   }
+   //       return { roomId, nickname: foundUser.nickname };
+   //    }
 }
