@@ -7,3 +7,6 @@ export interface User {
       body: string;
    };
 }
+export interface Users {
+   users: User[];
+}
