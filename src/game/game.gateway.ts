@@ -17,7 +17,7 @@ import { User } from "src/data/user/user.interface";
 //채팅담당 게이트웨이
 @WebSocketGateway({
    //네임스페이스 chat 설정
-   namespace: "katch-catch",
+   namespace: "ketch-catch",
    //모든 접근자 초기화
    cors: {
       origin: "*",
@@ -56,7 +56,7 @@ export class ChatGateway {
 // 게임 담당 게이트웨이
 @WebSocketGateway({
    //네임스페이스 game 설정
-   namespace: "katch-catch",
+   namespace: "ketch-catch",
    //모든 접근자 초기화
    cors: {
       origin: "*",
