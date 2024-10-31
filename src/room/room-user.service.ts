@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { RoomSettingService } from "src/data/room/room-setting.service";
 import { UserService } from "src/data/user/user.service";
+import { GameState } from "./itf/gameState.interface";
 
 @Injectable()
 export class RoomUserService {
@@ -16,11 +17,11 @@ export class RoomUserService {
       const users = foundUsers.map((user) => {
          return { id: count++, name: user.nickname, score: 0, avatar: user.avatar };
       });
-
+      const foundRoom = this.roomSettingService.findOneRoom(roomId);
       const roomIndex = this.roomSettingService.room.findIndex((room) => room.roomId === roomId);
       // client에게 보낼 데이터
       const payload = {
-         gameState: "pending",
+         gameState: foundRoom.isStart ? GameState.Playing : GameState.Pending,
          code: `${process.env.INVITATION_CODE}${roomIndex}`,
          users,
          host: users[0].id,
