@@ -10,6 +10,7 @@ import { passwordDto } from "./dto/password.dto";
 import { AppGateway } from "src/app.gateway";
 import { RoomUserService } from "./room-user.service";
 import { DtoService } from "./dto/dto.service";
+import { Socket } from "socket.io";
 
 @Injectable()
 export class RoomService {
@@ -235,16 +236,12 @@ export class RoomService {
       if (err.every((result) => result !== undefined) === false) return { roomId: undefined, users: undefined }; // dto 유효성 검증 오류가 발생한 경우
 
       const roomId = this.roomSettingService.room[parseInt(authenticationCode)].roomId;
-      console.log(roomId);
-      console.log(`socketId : ${socketId}`);
-
       const foundRoom = this.roomSettingService.findOneRoom(roomId);
 
       // 비밀번호가 없는 경우
       if (foundRoom.password === null) {
          this.userService.register(roomId, { socketId, ...userData, isHost: false });
          const users = this.roomUserService.getUsers(roomId);
-         console.log(this.userService.findUsers(roomId));
          return { roomId, users };
       }
 
@@ -258,61 +255,66 @@ export class RoomService {
       return { roomId, users };
    }
 
-   //    // 방 수정
-   //    async updateRoom(socketId: string, updateRoomData: roomSettingDto) {
-   //       const err = await this.roomSettingService.validData(updateRoomData);
-   //       if (err === undefined) return; // dto 유효성 검증 오류가 발생한 경우
+   // 방 수정
+   async updateRoom(socketId: string, updateRoomData: roomSettingDto) {
+      const err = await this.dtoService.roomValidData(updateRoomData);
+      if (err === undefined) return { roomId: undefined, users: undefined }; // dto 유효성 검증 오류가 발생한 경우
 
-   //       const foundUser = this.userService.findOneUser(socketId);
-   //       // 유저가 존재하지 않는 경우
-   //       if (foundUser === undefined) {
-   //          this.appGateway.handleError({ err: "존재하지 않는 유저입니다.", data: null });
-   //          return;
-   //       }
+      // 호스트 조회
+      const foundHost = Array.from(this.userService.users.values())
+         .map((user) => user[0]) // 각 방의 호스트들 찾은 후
+         .find((host) => host && host.socketId === socketId); // 호스트 찾음
 
-   //       // 호스트가 아닌 경우
-   //       if (foundUser.isHost === false) {
-   //          this.appGateway.handleError({ err: "호스트만 설정을 바꿀 수 있습니다.", data: null });
-   //       }
-   //       const roomId = foundUser.roomId;
-   //       const foundRoom = this.roomSettingService.findOneRoom(roomId);
-   //       // 방이 존재하지 않는 경우
-   //       if (foundRoom === undefined) {
-   //          this.appGateway.handleError({ err: "종료된 방입니다.", data: null });
-   //          return;
-   //       }
+      // 호스트가 아닌 경우
+      if (foundHost === undefined) {
+         this.appGateway.handleError({ err: "호스트만 변경 가능합니다.", data: null });
+         return { roomId: undefined, users: undefined };
+      }
 
-   //       this.roomSettingService.updateRoom(foundRoom.roomId, updateRoomData);
-   //       return roomId;
-   //    }
+      const rooms = Array.from(this.userService.users.keys()); // 각 방의 ID 배열
+      let roomId = undefined;
+      // 각 방의 ID 배열 순회
+      for (const room of rooms) {
+         // roomId로 각 방의 호스트 가져옴
+         const users = this.userService.users.get(room)[0];
+         if (users === foundHost) {
+            roomId = room;
+            break;
+         }
+      }
 
-   //    // 방 나가기
-   //    exitRoom(socket: Socket) {
-   //       const [_, currentRoom] = Array.from(socket.rooms); // _ : 자기 자신, currentRoom : 현재 속해 있는 방
-   //       socket.leave(currentRoom); // 방 떠나기
+      const users = this.roomUserService.getUsers(roomId);
+      this.roomSettingService.updateRoom(roomId, updateRoomData);
+      return { roomId, users };
+   }
 
-   //       const foundUser = this.userService.findOneUser(socket.id);
+   // 방 나가기
+   exitRoom(socket: Socket) {
+      const [_, currentRoom] = Array.from(socket.rooms); // _ : 자기 자신, currentRoom : 현재 속해 있는 방
+      if (currentRoom === undefined) return { roomId: undefined, users: undefined, nickname: undefined };
 
-   //       // 유저가 없는 경우
-   //       if (foundUser === undefined) return;
+      const roomId = currentRoom;
+      const foundUser = this.userService.findOneUser(roomId, socket.id);
+      // 유저가 없는 경우
+      if (foundUser === undefined) return { roomId: undefined, users: undefined, nickname: undefined };
 
-   //       const roomId = foundUser.roomId;
+      this.userService.deleteUser(roomId, socket.id);
 
-   //       // 유저가 나간 방에 존재하는 다른 유저들
-   //       const foundUsers = this.userService.findUsers(roomId);
+      // 유저가 나간 방에 존재하는 다른 유저들
+      const foundUsers = this.userService.findUsers(roomId);
+      // 방에 아무도 없을 경우
+      if (foundUsers.length === 0) {
+         this.roomSettingService.deleteRoom(roomId);
+         return;
+      }
 
-   //       // 방에 아무도 없을 경우
-   //       if (foundUsers.length === 0) {
-   //          this.roomSettingService.deleteRoom(roomId);
-   //          return;
-   //       }
+      // 나간 유저가 호스트인 경우
+      if (foundUser.isHost) {
+         // 그 다음으로 들어온 유저가 호스트
+         foundUsers[0].isHost = true;
+      }
 
-   //       // 나간 유저가 호스트인 경우
-   //       if (foundUser.isHost) {
-   //          // 그 다음으로 들어온 유저가 호스트
-   //          foundUsers[0].isHost = true;
-   //       }
-
-   //       return { roomId, nickname: foundUser.nickname };
-   //    }
+      const users = this.roomUserService.getUsers(roomId);
+      return { roomId, users, nickname: foundUser.nickname };
+   }
 }
