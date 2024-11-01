@@ -40,15 +40,6 @@ export class ChatGateway {
       // 메세지 확인용 콘솔 개발완료시 삭제
       console.log(message);
       // 유저와 방의 정보를 가져옴
-      const user: User = this.userService.findOneUser(socket.id);
-      const room: Room = this.roomSettingService.findOneRoom(user.roomId);
-      // 게임이 시작하지 않았다면 채팅을 그냥 보내줌
-      if (room.isStart === false) {
-         this.server.to(user.roomId).emit("message", message);
-      } else {
-         // 게임이 시작됐다면 message의 정답 여부를 위해 message를 체크
-         this.gameService.checkMessage(message.content, user.roomId);
-      }
    }
 }
 
@@ -74,14 +65,16 @@ export class GameGateway {
 
    // 게임시작
    @SubscribeMessage("start-game")
-   async gameStart(socket: Socket) {
-      // 유저정보를 그림그리는 사람을 랜덤으로 정하여 서버에게 보내기
-      const defaultUsers: Game_user[] = this.gameService.setDefaultGameUser(socket.id);
-      const GameUsers: Game_user[] = this.gameService.setRandomDrawer(defaultUsers);
-      this.server.to(GameUsers[0].roomId).emit("started game", GameUsers);
-
-      // 게임 시작신호 메세지를 확인하기 위함
-      this.roomSettingService.gameStart(GameUsers[0].roomId);
+   async gameStart(@ConnectedSocket() socket: Socket) {
+      // roomId 생성
+      const [_, currentRoom] = Array.from(socket.rooms);
+      // 초기 유저 설정
+      const Info = this.gameService.setDefaultGameInfo(socket.id, currentRoom); 
+      
+      // 게임시작 룸에게 전달데이터
+      this.server.to(currentRoom).emit("started-game", Info);
+      // 게임시작 메세지
+      this.server.to(currentRoom).emit("notice", "게임이 시작되었습니다.");
    }
 
    // 게임 종료 후 HOME
