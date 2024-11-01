@@ -34,7 +34,7 @@ export class RoomGateway implements OnGatewayConnection {
       const { userData, roomSetting } = data;
       const { roomId, users } = await this.roomService.createRoom(socket.id, userData, roomSetting);
       if (roomId === undefined || users === undefined) return; // 오류 발생 시
-      const message = `${userData}님이 입장하셨습니다.`;
+      const message = `${userData.nickname}님이 입장하셨습니다.`;
 
       // room 입장
       socket.join(roomId);
