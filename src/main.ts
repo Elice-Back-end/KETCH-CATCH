@@ -6,8 +6,10 @@ import { HttpExceptionFilter } from "./filters/http-exception.filter";
 
 async function bootstrap() {
    const app = await NestFactory.create(AppModule);
+
    app.setGlobalPrefix("api"); // 등록된 모든 경로의 접두사 api로 설정
    app.useGlobalFilters(new HttpExceptionFilter()); // HTTP 예외처리 필터를 전역 예외처리 필터로 설정
+   app.enableCors({ origin: process.env.CORS_URL }); // cors 설정
 
    // swagger 설정
    const config = new DocumentBuilder()
