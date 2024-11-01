@@ -11,6 +11,6 @@ import { DtoService } from "./dto/dto.service";
    imports: [DataModule],
    providers: [RoomService, RoomGateway, AppGateway, RoomUserService, DtoService],
    controllers: [RoomController],
-   exports: [RoomService],
+   exports: [RoomService, RoomUserService],
 })
 export class RoomModule {}

@@ -292,6 +292,7 @@ export class RoomService {
    exitRoom(socket: Socket) {
       const [_, currentRoom] = Array.from(socket.rooms); // _ : 자기 자신, currentRoom : 현재 속해 있는 방
       if (currentRoom === undefined) return { roomId: undefined, users: undefined, nickname: undefined };
+      socket.leave(currentRoom); // 현재 속한 방 떠남
 
       const roomId = currentRoom;
       const foundUser = this.userService.findOneUser(roomId, socket.id);
