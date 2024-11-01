@@ -17,7 +17,10 @@ export class GameService {
       private roomUserService: RoomUserService,
    ) {}
    // 문제리스트 
-   answerList: object[] = [];
+   answerList: {currentRoom:string, questions: Record<string, string>[]}[] = [];
+
+   // 게임중 user 관리 리스트
+   gameUsers: {currentRoom: string, users: Game_user[], cntUsers: number[]}[] = [];
    
    // 게임시작시 유저들의 게임 정보를 기본값으로 초기화
    setDefaultGameInfo(socketId: string, currentRoom: string):object {
@@ -25,12 +28,17 @@ export class GameService {
       const users = this.userService.findUsers(currentRoom);
       // 방정보
       const room: Room = this.roomSettingService.findOneRoom(currentRoom);
+      // 유저 정답관리 리스트
+      const cntUsers = [];
        
       // 초기유저정보에 게임에 필요한 정보를 추가하여 새로운 게임 유저 리스트 생성
-      const setDefaultUser = users.map((...user) => ({
+      // 그 후 게임 유저 리스트에 저장
+      const setDefaultUser:Game_user[] = users.map(user => ({
          ...user,
          score: 0
       }));
+      this.gameUsers.push({currentRoom, users : setDefaultUser, cntUsers});
+      
 
       //랜덤으로 그림그리는사람 선택
       const randomIndex = Math.floor(Math.random() * setDefaultUser.length);
@@ -38,8 +46,8 @@ export class GameService {
       //문제 가져오기
       const RWlist = catch_word;
       const round = room.round;
-      const randomAnswer = {currentRoom : RWlist.sort(() => 0.5 - Math.random()).slice(0, round)};
-      this.answerList.push(randomAnswer);
+      const randomAnswer = RWlist.sort(() => 0.5 - Math.random()).slice(0, round);
+      this.answerList.push({currentRoom, questions: randomAnswer});
 
       const payload = {
          gameState : GameState.Playing, //게임상태
@@ -52,6 +60,22 @@ export class GameService {
       }
 
       // 게임유저정보 반환
+      return payload;
+   }
+
+   plusScore(idx: number, roomId: string){
+      const gameUserData = this.gameUsers.find(item => item.currentRoom === roomId);
+      const {users, cntUsers} = gameUserData;
+      cntUsers.push(idx);
+      
+      users[idx].score = users[idx].score + (110 - (cntUsers.length * 10));
+
+      const payload = {
+         users: users,
+         particiapnts: users.length,
+         answerUser: cntUsers
+      }
+
       return payload;
    }
 

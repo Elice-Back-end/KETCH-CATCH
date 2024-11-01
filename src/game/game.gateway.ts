@@ -71,10 +71,22 @@ export class GameGateway {
       // 초기 유저 설정
       const Info = this.gameService.setDefaultGameInfo(socket.id, currentRoom); 
       
-      // 게임시작 룸에게 전달데이터
+      // 게임시작 룸에게 전달데이터 메세지
       this.server.to(currentRoom).emit("started-game", Info);
-      // 게임시작 메세지
       this.server.to(currentRoom).emit("notice", "게임이 시작되었습니다.");
+   }
+
+   // 게임 중 정답자가 나왔을 경우
+   @SubscribeMessage("answer")
+   async collectPerson(@ConnectedSocket() socket: Socket, data: {idx: number}){
+      // roomId 생성
+      const [_, currentRoom] = Array.from(socket.rooms);
+      
+      // 해당 idx를 가진 사람의 점수를 올려준다.
+      const payload = this.gameService.plusScore(data.idx, currentRoom);
+      
+      // 룸에 유저정보 반환 
+      this.server.to(currentRoom).emit("answer", payload);
    }
 
    // 게임 종료 후 HOME
