@@ -235,7 +235,7 @@ export class RoomService {
 
       if (err.every((result) => result !== undefined) === false) return { roomId: undefined, users: undefined }; // dto 유효성 검증 오류가 발생한 경우
 
-      const roomId = this.roomSettingService.room[parseInt(authenticationCode)].roomId;
+      const roomId = authenticationCode;
       const foundRoom = this.roomSettingService.findOneRoom(roomId);
 
       // 비밀번호가 없는 경우
@@ -245,7 +245,7 @@ export class RoomService {
          return { roomId, users };
       }
 
-      const isCheck = await this.checkPassword(authenticationCode, password.password);
+      const isCheck = await this.checkPassword(roomId, password.password);
       if (isCheck === undefined) return { roomId: undefined, users: undefined };
       // 유저 등록
       this.userService.register(roomId, { ...userData, socketId, isHost: false });
