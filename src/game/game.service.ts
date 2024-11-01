@@ -6,6 +6,7 @@ import { Room } from "src/data/room/room.interface";
 import { catch_word } from "src/data/word";
 import { RoomUserService } from "src/room/room-user.service";
 import { Socket } from "socket.io";
+import { GameState } from "./types/gameState";
 
 @Injectable()
 export class GameService {
@@ -15,22 +16,43 @@ export class GameService {
       private roomSettingService: RoomSettingService,
       private roomUserService: RoomUserService,
    ) {}
-
+   // 문제리스트 
+   answerList: object[] = [];
+   
    // 게임시작시 유저들의 게임 정보를 기본값으로 초기화
-   setDefaultGameUser(socketId: string): Game_user[] {
+   setDefaultGameInfo(socketId: string, currentRoom: string):object {
       // 초기유저정보를 가져옴
-      const users = this.userService.findUsers(socketId);
-
+      const users = this.userService.findUsers(currentRoom);
+      // 방정보
+      const room: Room = this.roomSettingService.findOneRoom(currentRoom);
+       
       // 초기유저정보에 게임에 필요한 정보를 추가하여 새로운 게임 유저 리스트 생성
-      const GameUsers: Game_user[] = users.map((user) => ({
+      const setDefaultUser = users.map((...user) => ({
          ...user,
-         isDrawer: false,
-         score: 0,
-         isCorrect: false,
+         score: 0
       }));
 
+      //랜덤으로 그림그리는사람 선택
+      const randomIndex = Math.floor(Math.random() * setDefaultUser.length);
+
+      //문제 가져오기
+      const RWlist = catch_word;
+      const round = room.round;
+      const randomAnswer = {currentRoom : RWlist.sort(() => 0.5 - Math.random()).slice(0, round)};
+      this.answerList.push(randomAnswer);
+
+      const payload = {
+         gameState : GameState.Playing, //게임상태
+         time : room.time, //게임시간
+         round : room.round, //게임라운드
+         problem : randomAnswer[0], //첫번째 문제(단어 : 힌트)
+         users: setDefaultUser, // 유저정보
+         darwer: randomIndex, // 그림그리는사람
+         participants : users.length // 참가자
+      }
+
       // 게임유저정보 반환
-      return GameUsers;
+      return payload;
    }
 
    // 랜덤으로 한명만 그림그리는 사람 선택
@@ -49,42 +71,8 @@ export class GameService {
       return setDefaultUser;
    }
 
-   setGameRoom(roomId: string) {
-      // roomId를 통해 roomID를 가진 room의 정보를 받아옴
-      const setRoom: Room = this.roomSettingService.findOneRoom(roomId);
-      // 게임 시간을 밀리초로 변환
-      const playTime: number = setRoom.time * 1000;
-   }
-
-   // 단어에서 round만큼 랜덤한 숫자를 반환
-   getRandomWorld(roomId: string): object[] {
-      const RWlist = catch_word;
-      const room: Room = this.roomSettingService.findOneRoom(roomId);
-      const round = room.round;
-
-      function getRandomW(RWlist: object[], round: number): object[] {
-         const shuffle = RWlist.sort(() => 0.5 - Math.random());
-         return shuffle.slice(0, round);
-      }
-
-      return getRandomW(RWlist, round);
-   }
-
-   checkMessage(message: string, roomId: string) {}
-
-   throwInit() {}
-
-   throwUserScore() {}
-
    nextRound(GameUsers: Game_user[]) {
-      // 정답자들을 false로 변경
-      const setDefaultUser = GameUsers.map((user) => ({
-         ...user,
-         isCorrect: false,
-      }));
 
-      // 현재 라운드를 1올림
-      // 모두정답 , 시간초과 , 넘어가기버튼
    }
 
    finishGame() {
