@@ -74,6 +74,9 @@ export class GameGateway {
       // 게임시작 룸에게 전달데이터 메세지
       this.server.to(currentRoom).emit("started-game", Info);
       this.server.to(currentRoom).emit("notice", "게임이 시작되었습니다.");
+
+      // 게임시작
+      this.gameService.gameStart(currentRoom);
    }
 
    // 게임 중 정답자가 나왔을 경우
@@ -87,6 +90,19 @@ export class GameGateway {
       
       // 룸에 유저정보 반환 
       this.server.to(currentRoom).emit("answer", payload);
+   }
+
+   // 다음라운드 넘어가기 버튼을 클릭했을 경우
+   @SubscribeMessage("next-round")
+   async nextRound(@ConnectedSocket() socket: Socket){
+      // roomId 생성
+      const [_, currentRoom] = Array.from(socket.rooms);
+      
+      // 룸에게 다음 라운드로 가라고 지시한다.
+      const payload = this.gameService.nextRound(currentRoom);
+
+      // 다음라운드로 진행했을시 데이터를 룸에게 반환
+      this.server.to(currentRoom).emit("next-round", payload);
    }
 
    // 게임 종료 후 HOME
