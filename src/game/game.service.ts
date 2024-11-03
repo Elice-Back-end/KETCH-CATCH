@@ -5,8 +5,9 @@ import { UserService } from "src/data/user/user.service";
 import { Room } from "src/data/room/room.interface";
 import { catch_word } from "src/data/word";
 import { RoomUserService } from "src/room/room-user.service";
-import { Socket } from "socket.io";
+import { Socket, Server } from "socket.io";
 import { GameState } from "./types/gameState";
+import { WebSocketServer } from "@nestjs/websockets";
 
 @Injectable()
 export class GameService {
@@ -16,6 +17,9 @@ export class GameService {
       private roomSettingService: RoomSettingService,
       private roomUserService: RoomUserService,
    ) {}
+   @WebSocketServer()
+   server:Server;
+
    // 문제리스트 
    answerList: {currentRoom:string, questions: string[]}[] = [];
 
@@ -42,7 +46,6 @@ export class GameService {
       }));
       this.gameUsers.push({currentRoom, users : setDefaultUser, cntUsers});
       
-
       //랜덤으로 그림그리는사람 선택
       const randomIndex = Math.floor(Math.random() * setDefaultUser.length);
 
@@ -84,18 +87,16 @@ export class GameService {
          particiapnts: users.length,
          answerUser: cntUsers
       }
-
-      // 참가자 전원이 정답자일경우 다음라운드 진입
-      if(cntUsers.length === Room.participants){
-         this.nextRound(roomId);
-      }
-
+      
       return payload;
    }
 
    gameStart(roomId:string){
       // 해당 룸아이디를 가진 룸을 가져옴
       const room = this.roomSettingService.findOneRoom(roomId);
+      
+      // 게임이 시작된것을 저장
+      room.isStart = true;
       
       // 룸의 방설정에 맞게 timer 설정
       const timeOut = setTimeout(()=>{
@@ -117,7 +118,7 @@ export class GameService {
       
       // 마지막 라운드일 경우 finishGame 호출
       if(gameRoomData.nowRound === room.round){
-         this.finishGame();
+         this.finishGame(roomId);
       }
       else{
          // 전라운드에 진행했던 timer 삭제 후, 새로운 타이머 주입
@@ -147,13 +148,31 @@ export class GameService {
             "participants" : sortedUser.length,
          };
 
-         return payload;
+         this.server.to(roomId).emit("next-round", payload);
       }
    }
 
-   finishGame() {
-      // 게임끝나고 랭킹 넘길때, 게임 중 유저객체를 넘길때 처럼 넘겨주냐 아니면 랭킹에 관한 정보만 넘겨주냐?
-      // 저희가 걸러주는게 맞나요?
+   finishGame(roomId: string) {
+      // 해당 방에 있는 게임유저 데이터를 해당 룸에게 보내기 위해 가져옴
+      const gameUserData = this.gameUsers.find(item => item.currentRoom == roomId);
+      
+      // 유저의 게임정보를 내림차순으로 정리
+      const {users} = gameUserData;
+      const sortedUser = users.sort((a, b)=> b.score - a.score);
+
+      // payload 데이터 가공
+      const payload = {
+         gamestate : GameState.Finished,
+         users : sortedUser,
+         participants : sortedUser.length
+      }
+
+      // 게임데이터 삭제
+      this.gameUsers = this.gameUsers.filter(item => item.currentRoom !== roomId);
+      this.gameRound = this.gameRound.filter(item => item.currnetRoom !== roomId);
+
+      // 가공 된 데이터 반환
+      return payload;
    }
 
    RetryGame(socket: Socket) {
