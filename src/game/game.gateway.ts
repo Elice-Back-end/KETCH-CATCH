@@ -102,13 +102,34 @@ export class GameGateway {
       this.gameService.nextRound(currentRoom);
    }
 
+   // 게임 중 유저가 퇴장했을시
+   @SubscribeMessage("in-game-exit")
+   inGameExit(@ConnectedSocket() socket: Socket){
+      // roomId, users, nickname 가져옴 / 예외처리
+      const { roomId, users, nickname } = this.roomService.exitRoom(socket);
+      if (roomId === undefined || users === undefined || nickname === undefined) return;
+      
+      // 유저이탈이벤트
+      const gameData = this.gameService.inGameExit(socket ,roomId);
+
+      const payload = {
+         users: users,
+         participants: gameData.participants,
+         answwerUser: gameData.answerUser
+      }
+
+      const eventName = users.gameState === GameState.Pending ? "pending-room" : "game-room";
+      this.server.to(roomId).emit("notice", { message: `${nickname}님이 방을 나갔습니다.` });
+      this.server.to(roomId).emit(eventName, payload);
+   }
+
    // 게임 종료
    @SubscribeMessage("finish-game")
    finishGame(@ConnectedSocket() socket: Socket){
       // roomId 생성
       const [_, currentRoom] = Array.from(socket.rooms);
 
-      // 게임이 끝났다는걸 알린다.
+      // 게임 종료 이벤트
       const payload = this.gameService.finishGame(currentRoom);
 
       // 룸에게 유저정보 반환
