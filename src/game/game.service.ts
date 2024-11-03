@@ -73,10 +73,11 @@ export class GameService {
    plusScore(idx: number, roomId: string){
       // 게임 유저 데이터를 불러옴
       const gameUserData = this.gameUsers.find(item => item.currentRoom === roomId);
-      const Room = this.roomSettingService.findOneRoom(roomId);
       const {users, cntUsers} = gameUserData;
-      // 정답자 리스트에 해당 유저 삽입
+      
+      // 정답자 리스트에 해당 유저 삽입 후 내림차순 정리
       cntUsers.push(idx);
+      cntUsers.sort((a,b) => b-a);
       
       // 정답자에게 순차적으로 점수부과
       users[idx].score = users[idx].score + (110 - (cntUsers.length * 10));
@@ -150,6 +151,44 @@ export class GameService {
 
          this.server.to(roomId).emit("next-round", payload);
       }
+   }
+
+   inGameExit(socket: Socket, roomId: string){
+      // socket에 해당하는 유저데이터와 정답자 배열 가져오기
+      const { users , cntUsers } = this.gameUsers.find((item => item.currentRoom === roomId));
+
+      // 해당 유저의 idx번호
+      const userIdx = users.findIndex(u => u.socketId === socket.id);
+
+      // 해당유저의 idx의 cntUser 내부의 idx번호
+      const uIdx = cntUsers.indexOf(userIdx);
+      
+      // 정답자에 있다면 삭제후 정답자보다 큰 idx를 가진 유저들의 idx를 1씩 낮춤
+      if(uIdx  !== -1){
+         cntUsers.filter(idx => idx !== userIdx);
+         for(let i=uIdx; i<cntUsers.length; i++){
+            cntUsers[i]--;
+         }
+      }
+      // 정답자에 없다면 해당 정답자보다 큰 idx를 가진 유저들의 idx를 1씩 낮춤
+      else{
+         for(let i=0; i<cntUsers.length; i++){
+            if(cntUsers[i] > userIdx){
+               cntUsers[i]--;
+            }
+         }
+      }
+
+      // 해당방의 유저 삭제
+      users.filter(user => user.socketId === socket.id);
+
+      // payload 데이터 가공
+      const payload = {
+         participants: users.length,
+         answerUser : cntUsers
+      }
+
+      return payload;
    }
 
    finishGame(roomId: string) {
