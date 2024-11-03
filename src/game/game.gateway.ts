@@ -99,11 +99,21 @@ export class GameGateway {
       const [_, currentRoom] = Array.from(socket.rooms);
       
       // 룸에게 다음 라운드로 가라고 지시한다.
-      const payload = this.gameService.nextRound(currentRoom);
-
-      // 다음라운드로 진행했을시 데이터를 룸에게 반환
-      this.server.to(currentRoom).emit("next-round", payload);
+      this.gameService.nextRound(currentRoom);
    }
+
+   // 게임 종료
+   @SubscribeMessage("finish-game")
+   finishGame(@ConnectedSocket() socket: Socket){
+      // roomId 생성
+      const [_, currentRoom] = Array.from(socket.rooms);
+
+      // 게임이 끝났다는걸 알린다.
+      const payload = this.gameService.finishGame(currentRoom);
+
+      // 룸에게 유저정보 반환
+      this.server.to(currentRoom).emit("finished-game", payload);
+   } 
 
    // 게임 종료 후 HOME
    @SubscribeMessage("go-to-home")
