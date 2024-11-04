@@ -17,7 +17,6 @@ export class RoomService {
    private round: number;
    private time: number;
    private participants: number;
-   private gameMode: string;
    private password: string | null;
 
    constructor(
@@ -30,7 +29,6 @@ export class RoomService {
       this.round = 3;
       this.time = 60;
       this.participants = 4;
-      this.gameMode = "easy mode";
       this.password = null;
    }
 
@@ -41,7 +39,6 @@ export class RoomService {
          round: this.round,
          time: this.time,
          participants: this.participants,
-         gameMode: this.gameMode,
          password: this.password,
          isStart: false,
       };
@@ -64,7 +61,7 @@ export class RoomService {
 
       if (err.every((result) => result !== undefined) === false) return { roomId: undefined, users: undefined }; // dto 유효성 검증 오류가 발생한 경우
 
-      const { round, time, participants, gameMode, password } = roomData;
+      const { round, time, participants, password } = roomData;
       const roomId = nanoid(); // 랜덤한 roomId 생성
       // 패스워드가 null이 아닌 경우 해시화
       const roomPassword = password === null ? null : await bcrypt.hash(password, 10);
@@ -77,7 +74,6 @@ export class RoomService {
          round,
          time,
          participants,
-         gameMode,
          password: roomPassword,
          isStart: false,
       });

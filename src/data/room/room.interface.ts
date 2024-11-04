@@ -3,7 +3,6 @@ export interface Room {
    round: number; // 게임 라운드
    time: number; // 게임 시간
    participants: number; // 참여자 수
-   gameMode: string; // 게임 모드
    password: string | null; // 방 비밀번호
    isStart: boolean; // 게임 시작 여부
 }
