@@ -8,6 +8,7 @@ import { RoomUserService } from "src/room/room-user.service";
 import { Socket, Server } from "socket.io";
 import { GameState } from "./types/gameState";
 import { WebSocketServer } from "@nestjs/websockets";
+import { GameGateway } from "./game.gateway";
 
 @Injectable()
 export class GameService {
@@ -16,6 +17,7 @@ export class GameService {
       private userService: UserService,
       private roomSettingService: RoomSettingService,
       private roomUserService: RoomUserService,
+      private gameGateway : GameGateway,
    ) {}
    @WebSocketServer()
    server:Server;
@@ -149,7 +151,8 @@ export class GameService {
             "participants" : sortedUser.length,
          };
 
-         this.server.to(roomId).emit("next-round", payload);
+         // room에 payload 수신
+         this.gameGateway.emitEvent(roomId, payload);
       }
    }
 

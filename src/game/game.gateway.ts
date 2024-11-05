@@ -158,4 +158,8 @@ export class GameGateway {
       this.server.to(roomId).emit("pending-room", users);
       this.server.to(roomId).emit("notice", { message });
    }
+
+   emitEvent(roomId: string, data: any) {
+      this.server.to(roomId).emit('eventName', data);
+    }
 }
