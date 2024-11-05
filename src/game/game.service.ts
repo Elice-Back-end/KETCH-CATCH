@@ -71,7 +71,7 @@ export class GameService {
       // 게임유저정보 반환
       return payload;
    }
-
+   // 잘 됩니다 ^^
    plusScore(idx: number, roomId: string) {
       // 게임 유저 데이터를 불러옴
       const gameUserData = this.gameUsers.find((item) => item.currentRoom === roomId);
