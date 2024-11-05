@@ -16,10 +16,6 @@ export class roomSettingDto {
    @Max(8, { message: "참여자는 8명 이하여야 합니다." })
    readonly participants: number;
 
-   @IsString({ message: "게임모드는 문자열이어야 합니다." })
-   @IsNotEmpty({ message: "게임모드는 빈 값이 아니어야 합니다." })
-   readonly gameMode: string;
-
    @IsOptional()
    @IsString({ message: "비밀번호는 문자열이어야 합니다." })
    @IsNotEmpty({ message: "비밀번호는 빈 값이 아니어야 합니다." })
