@@ -105,13 +105,13 @@ export class RoomController {
       description: "Internal Server Error",
       example: { err: "서버 오류입니다. 잠시 후 다시 시도해주세요.", data: null },
    })
-   async checkPassword(
-      @Res({ passthrough: true }) res: Response,
-      @Headers("authentication") authenticationCode: string,
-      @Body() data: passwordDto,
-   ) {
-      return await this.roomService.checkPassword(res, authenticationCode, data);
-   }
+   // async checkPassword(
+   //    @Res({ passthrough: true }) res: Response,
+   //    @Headers("authentication") authenticationCode: string,
+   //    @Body() data: passwordDto,
+   // ) {
+   //    return await this.roomService.checkPassword(res, authenticationCode, data);
+   // }
 
    // url 입장 시
    @Get(":roomId")
