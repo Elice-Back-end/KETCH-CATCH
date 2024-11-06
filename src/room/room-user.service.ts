@@ -15,7 +15,7 @@ export class RoomUserService {
       const foundUsers = this.userService.findUsers(roomId);
       // 대기 방 안에 있는 유저들
       const users = foundUsers.map((user) => {
-         return { id: count++, nickName: user.nickname, score: 0 };
+         return { id: count++, nickname: user.nickname, score: 0 };
       });
       const foundRoom = this.roomSettingService.findOneRoom(roomId);
       // client에게 보낼 데이터
