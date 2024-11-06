@@ -42,7 +42,8 @@ export class GameService {
 
       // 초기유저정보에 게임에 필요한 정보를 추가하여 새로운 게임 유저 리스트 생성
       // 그 후 게임 유저 리스트에 저장
-      const setDefaultUser: Game_user[] = users.map((user) => ({
+      const setDefaultUser: Game_user[] = users.map((user, index) => ({
+         id: index,
          ...user,
          score: 0,
       }));
@@ -140,7 +141,7 @@ export class GameService {
          gameRoomData.nowRound++;
          // payload 데이터 가공
          const payload = {
-            gamestat: GameState.Playing,
+            gameState: GameState.Playing,
             time: room.time,
             problem: questions[gameRoomData.nowRound - 1],
             users: sortedUser,
