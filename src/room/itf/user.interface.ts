@@ -1,11 +1,7 @@
 export interface User {
    readonly id: number;
-   readonly name: string;
+   readonly nickName: string;
    readonly score: number;
-   readonly avatar: {
-      eye: string;
-      body: string;
-   };
 }
 export interface Users {
    users: User[];
