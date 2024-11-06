@@ -87,7 +87,6 @@ export class GameService {
       // payload 가공
       const payload = {
          users: users,
-         particiapnts: users.length,
          answerUser: cntUsers,
       };
 
@@ -143,11 +142,9 @@ export class GameService {
          const payload = {
             gamestat: GameState.Playing,
             time: room.time,
-            round: room.round,
             problem: questions[gameRoomData.nowRound - 1],
             users: sortedUser,
             drawer: randomIndex,
-            participants: sortedUser.length,
          };
          // room에 payload 수신
          this.gameGateway.emitEvent(roomId, payload);
